@@ -1,0 +1,458 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CalorieTrack - Penghitung Kalori Pintar</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            color: #333;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        header {
+            text-align: center;
+            padding: 40px 0;
+            color: white;
+        }
+
+        header h1 {
+            font-size: 3em;
+            margin-bottom: 10px;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+        }
+
+        header p {
+            font-size: 1.2em;
+            opacity: 0.9;
+        }
+
+        .main-menu {
+            display: flex;
+            justify-content: center;
+            gap: 20px;
+            margin: 30px 0;
+            flex-wrap: wrap;
+        }
+
+        .menu-btn {
+            background: white;
+            border: none;
+            padding: 20px 40px;
+            border-radius: 20px;
+            font-size: 1.1em;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            min-width: 250px;
+            justify-content: center;
+        }
+
+        .menu-btn:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 15px 40px rgba(0,0,0,0.3);
+        }
+
+        .menu-btn.active {
+            background: #ffd700;
+            color: #333;
+        }
+
+        .content-section {
+            background: white;
+            border-radius: 30px;
+            padding: 40px;
+            margin: 20px 0;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.2);
+            display: none;
+            animation: fadeIn 0.5s ease;
+        }
+
+        .content-section.active {
+            display: block;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        /* Food List Styles */
+        .search-box {
+            width: 100%;
+            padding: 15px 25px;
+            border: 2px solid #e0e0e0;
+            border-radius: 50px;
+            font-size: 1em;
+            margin-bottom: 30px;
+            transition: border-color 0.3s;
+        }
+
+        .search-box:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        .food-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+            gap: 25px;
+        }
+
+        .food-card {
+            background: linear-gradient(145deg, #f5f7fa 0%, #c3cfe2 100%);
+            border-radius: 20px;
+            overflow: hidden;
+            transition: transform 0.3s;
+            cursor: pointer;
+        }
+
+        .food-card:hover {
+            transform: scale(1.05);
+        }
+
+        .food-image {
+            width: 100%;
+            height: 200px;
+            object-fit: cover;
+            background: #ddd;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #666;
+            font-size: 3em;
+        }
+
+        .food-info {
+            padding: 20px;
+        }
+
+        .food-name {
+            font-size: 1.3em;
+            font-weight: bold;
+            margin-bottom: 10px;
+            color: #2c3e50;
+        }
+
+        .calorie-badge {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 8px 20px;
+            border-radius: 20px;
+            display: inline-block;
+            font-weight: bold;
+        }
+
+        .portion-info {
+            color: #666;
+            margin-top: 10px;
+            font-size: 0.9em;
+        }
+
+        /* Scanner Styles */
+        .scanner-container {
+            text-align: center;
+            padding: 40px;
+        }
+
+        .camera-preview {
+            width: 100%;
+            max-width: 500px;
+            height: 400px;
+            background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%);
+            border-radius: 20px;
+            margin: 0 auto 30px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-size: 4em;
+            position: relative;
+            overflow: hidden;
+            border: 4px solid #667eea;
+        }
+
+        .scan-frame {
+            position: absolute;
+            width: 250px;
+            height: 250px;
+            border: 3px dashed rgba(255,255,255,0.8);
+            border-radius: 20px;
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { transform: scale(1); opacity: 1; }
+            50% { transform: scale(1.05); opacity: 0.7; }
+        }
+
+        .scan-btn {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            padding: 20px 60px;
+            border-radius: 50px;
+            font-size: 1.2em;
+            cursor: pointer;
+            transition: all 0.3s;
+            box-shadow: 0 10px 30px rgba(102, 126, 234, 0.4);
+        }
+
+        .scan-btn:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 15px 40px rgba(102, 126, 234, 0.5);
+        }
+
+        .scan-result {
+            margin-top: 30px;
+            padding: 30px;
+            background: #f8f9fa;
+            border-radius: 20px;
+            display: none;
+        }
+
+        .scan-result.show {
+            display: block;
+            animation: slideUp 0.5s ease;
+        }
+
+        @keyframes slideUp {
+            from { opacity: 0; transform: translateY(30px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .result-food-name {
+            font-size: 2em;
+            color: #2c3e50;
+            margin-bottom: 15px;
+        }
+
+        .nutrition-facts {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 20px;
+            margin-top: 20px;
+        }
+
+        .nutrition-item {
+            background: white;
+            padding: 20px;
+            border-radius: 15px;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+        }
+
+        .nutrition-value {
+            font-size: 1.8em;
+            font-weight: bold;
+            color: #667eea;
+        }
+
+        .nutrition-label {
+            color: #666;
+            margin-top: 5px;
+        }
+
+        .icon {
+            font-size: 1.5em;
+        }
+
+        @media (max-width: 768px) {
+            header h1 {
+                font-size: 2em;
+            }
+            
+            .menu-btn {
+                width: 100%;
+                min-width: auto;
+            }
+            
+            .food-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>🥗 CalorieTrack</h1>
+            <p>Pantau asupan kalori Anda dengan mudah dan cerdas</p>
+        </header>
+
+        <div class="main-menu">
+            <button class="menu-btn active" onclick="showSection('list')">
+                <span class="icon">📋</span>
+                <span>Daftar Makanan</span>
+            </button>
+            <button class="menu-btn" onclick="showSection('scan')">
+                <span class="icon">📷</span>
+                <span>Scan Makanan</span>
+            </button>
+        </div>
+
+        <!-- Food List Section -->
+        <div id="list-section" class="content-section active">
+            <h2 style="margin-bottom: 20px; color: #2c3e50;">🍽️ Daftar Makanan & Minuman</h2>
+            <input type="text" class="search-box" placeholder="🔍 Cari makanan..." id="searchInput" onkeyup="searchFood()">
+            
+            <div class="food-grid" id="foodGrid">
+                <!-- Food items will be generated by JavaScript -->
+            </div>
+        </div>
+
+        <!-- Scanner Section -->
+        <div id="scan-section" class="content-section">
+            <h2 style="margin-bottom: 20px; color: #2c3e50; text-align: center;">📷 Scan Makanan</h2>
+            <div class="scanner-container">
+                <div class="camera-preview">
+                    <div class="scan-frame"></div>
+                    <span style="z-index: 10;">📸</span>
+                    <p style="position: absolute; bottom: 20px; font-size: 0.3em;">Arahkan kamera ke makanan</p>
+                </div>
+                <button class="scan-btn" onclick="scanFood()">
+                    🔍 Scan Sekarang
+                </button>
+                
+                <div id="scanResult" class="scan-result">
+                    <div class="result-food-name" id="resultFoodName">Nasi Goreng</div>
+                    <div class="nutrition-facts">
+                        <div class="nutrition-item">
+                            <div class="nutrition-value" id="resultCalories">250</div>
+                            <div class="nutrition-label">Kalori (kcal)</div>
+                        </div>
+                        <div class="nutrition-item">
+                            <div class="nutrition-value" id="resultProtein">8g</div>
+                            <div class="nutrition-label">Protein</div>
+                        </div>
+                        <div class="nutrition-item">
+                            <div class="nutrition-value" id="resultCarbs">35g</div>
+                            <div class="nutrition-label">Karbohidrat</div>
+                        </div>
+                        <div class="nutrition-item">
+                            <div class="nutrition-value" id="resultFat">9g</div>
+                            <div class="nutrition-label">Lemak</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Database makanan
+        const foodDatabase = [
+            { name: "Nasi Putih", calories: 175, protein: "4g", carbs: "40g", fat: "0.5g", portion: "1 piring (150g)", emoji: "🍚" },
+            { name: "Nasi Goreng", calories: 250, protein: "8g", carbs: "35g", fat: "9g", portion: "1 piring", emoji: "🍳" },
+            { name: "Ayam Goreng", calories: 290, protein: "25g", carbs: "0g", fat: "20g", portion: "1 potong (100g)", emoji: "🍗" },
+            { name: "Ayam Bakar", calories: 220, protein: "27g", carbs: "3g", fat: "12g", portion: "1 potong (100g)", emoji: "🍖" },
+            { name: "Telur Goreng", calories: 90, protein: "6g", carbs: "0.5g", fat: "7g", portion: "1 butir", emoji: "🍳" },
+            { name: "Telur Rebus", calories: 70, protein: "6g", carbs: "0.5g", fat: "5g", portion: "1 butir", emoji: "🥚" },
+            { name: "Tempe Goreng", calories: 195, protein: "15g", carbs: "10g", fat: "12g", portion: "1 papan (50g)", emoji: "🫘" },
+            { name: "Tahu Goreng", calories: 120, protein: "10g", carbs: "5g", fat: "8g", portion: "2 potong", emoji: "🧈" },
+            { name: "Sayur Sop", calories: 45, protein: "2g", carbs: "8g", fat: "1g", portion: "1 mangkuk", emoji: "🥣" },
+            { name: "Gado-Gado", calories: 300, protein: "12g", carbs: "25g", fat: "18g", portion: "1 porsi", emoji: "🥗" },
+            { name: "Sate Ayam", calories: 200, protein: "18g", carbs: "8g", fat: "12g", portion: "5 tusuk", emoji: "🍢" },
+            { name: "Rendang", calories: 350, protein: "22g", carbs: "5g", fat: "28g", portion: "100g", emoji: "🥩" },
+            { name: "Mie Goreng", calories: 400, protein: "12g", carbs: "55g", fat: "15g", portion: "1 piring", emoji: "🍜" },
+            { name: "Bakso", calories: 150, protein: "10g", carbs: "12g", fat: "8g", portion: "5 butir + kuah", emoji: "🍲" },
+            { name: "Soto Ayam", calories: 120, protein: "15g", carbs: "8g", fat: "4g", portion: "1 mangkuk", emoji: "🍜" },
+            { name: "Pecel Lele", calories: 280, protein: "20g", carbs: "2g", fat: "22g", portion: "1 ekor", emoji: "🐟" },
+            { name: "Jus Alpukat", calories: 180, protein: "2g", carbs: "20g", fat: "10g", portion: "1 gelas", emoji: "🥑" },
+            { name: "Jus Jeruk", calories: 120, protein: "2g", carbs: "28g", fat: "0g", portion: "1 gelas", emoji: "🍊" },
+            { name: "Es Teh Manis", calories: 90, protein: "0g", carbs: "23g", fat: "0g", portion: "1 gelas", emoji: "🥤" },
+            { name: "Kopi Susu", calories: 80, protein: "3g", carbs: "10g", fat: "3g", portion: "1 gelas", emoji: "☕" },
+            { name: "Pisang Goreng", calories: 150, protein: "2g", carbs: "25g", fat: "6g", portion: "2 buah", emoji: "🍌" },
+            { name: "Martabak Manis", calories: 400, protein: "8g", carbs: "60g", fat: "15g", portion: "1 potong", emoji: "🥞" },
+            { name: "Kerupuk", calories: 50, protein: "1g", carbs: "8g", fat: "2g", portion: "2 lembar", emoji: "🍘" },
+            { name: "Pecel Sayur", calories: 200, protein: "8g", carbs: "20g", fat: "12g", portion: "1 porsi", emoji: "🥬" }
+        ];
+
+        // Tampilkan semua makanan saat load
+        function displayFoods(foods) {
+            const grid = document.getElementById('foodGrid');
+            grid.innerHTML = foods.map(food => `
+                <div class="food-card">
+                    <div class="food-image">${food.emoji}</div>
+                    <div class="food-info">
+                        <div class="food-name">${food.name}</div>
+                        <span class="calorie-badge">🔥 ${food.calories} kkal</span>
+                        <div class="portion-info">📏 ${food.portion}</div>
+                        <div style="margin-top: 10px; font-size: 0.85em; color: #666;">
+                            Protein: ${food.protein} | Karbo: ${food.carbs} | Lemak: ${food.fat}
+                        </div>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        // Fungsi pencarian
+        function searchFood() {
+            const input = document.getElementById('searchInput').value.toLowerCase();
+            const filtered = foodDatabase.filter(food => 
+                food.name.toLowerCase().includes(input)
+            );
+            displayFoods(filtered);
+        }
+
+        // Ganti section
+        function showSection(section) {
+            // Update buttons
+            document.querySelectorAll('.menu-btn').forEach(btn => {
+                btn.classList.remove('active');
+            });
+            event.target.closest('.menu-btn').classList.add('active');
+
+            // Update sections
+            document.querySelectorAll('.content-section').forEach(sec => {
+                sec.classList.remove('active');
+            });
+            document.getElementById(section + '-section').classList.add('active');
+        }
+
+        // Simulasi scan makanan
+        function scanFood() {
+            const btn = document.querySelector('.scan-btn');
+            const result = document.getElementById('scanResult');
+            
+            btn.innerHTML = '⏳ Memindai...';
+            btn.disabled = true;
+            
+            // Simulasi proses scanning
+            setTimeout(() => {
+                // Pilih makanan random dari database
+                const randomFood = foodDatabase[Math.floor(Math.random() * foodDatabase.length)];
+                
+                document.getElementById('resultFoodName').innerHTML = `${randomFood.emoji} ${randomFood.name}`;
+                document.getElementById('resultCalories').textContent = randomFood.calories;
+                document.getElementById('resultProtein').textContent = randomFood.protein;
+                document.getElementById('resultCarbs').textContent = randomFood.carbs;
+                document.getElementById('resultFat').textContent = randomFood.fat;
+                
+                result.classList.add('show');
+                btn.innerHTML = '🔍 Scan Lagi';
+                btn.disabled = false;
+            }, 2000);
+        }
+
+        // Inisialisasi
+        displayFoods(foodDatabase);
+    </script>
+</body>
+</html>
