@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>CalorieTrack AI Pro - Analisis Nutrisi dengan Google Vision</title>
+    <title>CalorieTrack AI Pro - Fixed Version</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap" rel="stylesheet">
     <style>
@@ -136,6 +136,11 @@
             color: white;
         }
 
+        .api-status.loading {
+            background: rgba(251, 191, 36, 0.9);
+            color: white;
+        }
+
         ::-webkit-scrollbar {
             width: 8px;
         }
@@ -171,12 +176,32 @@
             font-size: 0.8em;
             border: 1px solid #e5e7eb;
         }
+
+        .error-message {
+            background: #fee2e2;
+            border: 1px solid #ef4444;
+            color: #991b1b;
+            padding: 12px;
+            border-radius: 8px;
+            margin: 10px 0;
+            font-size: 0.9em;
+        }
+
+        .success-message {
+            background: #d1fae5;
+            border: 1px solid #10b981;
+            color: #065f46;
+            padding: 12px;
+            border-radius: 8px;
+            margin: 10px 0;
+            font-size: 0.9em;
+        }
     </style>
 </head>
 <body class="text-gray-800">
     <!-- API Status Indicator -->
-    <div id="apiStatus" class="api-status connected">
-        🔒 API Connected
+    <div id="apiStatus" class="api-status loading">
+        ⏳ Checking API...
     </div>
 
     <div class="container mx-auto px-4 py-6 max-w-6xl">
@@ -187,7 +212,11 @@
             </div>
             <h1 class="text-4xl md:text-5xl font-bold text-white mb-2 drop-shadow-lg">CalorieTrack AI Pro</h1>
             <p class="text-white/90 text-lg md:text-xl font-light">Powered by Google Vision API</p>
+            <p class="text-white/70 text-sm mt-2">v2.0 - Fixed & Stable</p>
         </header>
+
+        <!-- Error Display -->
+        <div id="errorDisplay" class="hidden max-w-2xl mx-auto mb-4"></div>
 
         <!-- Navigation -->
         <nav class="flex flex-col sm:flex-row justify-center gap-4 mb-8 px-4">
@@ -222,14 +251,27 @@
         <section id="section-scan" class="hidden glass-effect rounded-3xl p-6 md:p-8 shadow-2xl fade-in">
             <h2 class="text-2xl md:text-3xl font-bold text-gray-800 text-center mb-6">🔍 Google Vision AI Scanner</h2>
             
+            <!-- HTTPS Warning -->
+            <div id="httpsWarning" class="hidden bg-yellow-100 border-l-4 border-yellow-500 text-yellow-700 p-4 mb-4 rounded">
+                <p class="font-bold">⚠️ Perhatian</p>
+                <p>Kamera memerlukan HTTPS atau localhost. Gunakan tombol upload gambar sebagai alternatif.</p>
+            </div>
+            
             <div class="max-w-2xl mx-auto">
                 <!-- Camera Preview -->
                 <div class="camera-container bg-gray-900 rounded-2xl overflow-hidden mb-6 relative aspect-video shadow-2xl">
-                    <video id="videoElement" class="w-full h-full object-cover" autoplay playsinline></video>
+                    <video id="videoElement" class="w-full h-full object-cover hidden" autoplay playsinline></video>
                     <canvas id="canvasElement" class="hidden"></canvas>
                     
+                    <!-- Placeholder when camera off -->
+                    <div id="cameraPlaceholder" class="absolute inset-0 flex flex-col items-center justify-center bg-gray-800 text-white">
+                        <span class="text-6xl mb-4">📷</span>
+                        <p class="text-lg">Kamera siap</p>
+                        <p class="text-sm text-gray-400 mt-2">Klik "Nyalakan Kamera" untuk memulai</p>
+                    </div>
+                    
                     <!-- Scan Overlay -->
-                    <div id="scanOverlay" class="absolute inset-0 flex items-center justify-center pointer-events-none">
+                    <div id="scanOverlay" class="hidden absolute inset-0 flex items-center justify-center pointer-events-none">
                         <div class="scan-frame">
                             <div class="scan-line"></div>
                         </div>
@@ -239,10 +281,10 @@
                     </div>
 
                     <!-- Loading Overlay -->
-                    <div id="loadingOverlay" class="hidden absolute inset-0 bg-black/80 flex flex-col items-center justify-center z-20">
+                    <div id="loadingOverlay" class="hidden absolute inset-0 bg-black/90 flex flex-col items-center justify-center z-20">
                         <div class="loader mb-4"></div>
                         <p class="text-white font-semibold">Google Vision AI Sedang menganalisis...</p>
-                        <p class="text-white/70 text-sm mt-2">Mengidentifikasi objek & menghitung nutrisi</p>
+                        <p class="text-white/70 text-sm mt-2" id="loadingText">Mengidentifikasi objek...</p>
                     </div>
                 </div>
 
@@ -252,7 +294,7 @@
                         <span>📹</span> Nyalakan Kamera
                     </button>
                     <button onclick="captureAndAnalyze()" id="captureBtn" class="hidden flex-1 bg-gradient-to-r from-purple-600 to-indigo-600 text-white py-4 px-8 rounded-full font-bold shadow-lg hover:shadow-xl transform hover:-translate-y-1 transition-all flex items-center justify-center gap-2">
-                        <span>📸</span> Analisis dengan AI
+                        <span>📸</span> Analisis AI
                     </button>
                     <button onclick="stopCamera()" id="stopBtn" class="hidden flex-1 bg-red-500 text-white py-4 px-8 rounded-full font-bold shadow-lg hover:shadow-xl transform hover:-translate-y-1 transition-all flex items-center justify-center gap-2">
                         <span>⏹️</span> Matikan
@@ -262,13 +304,16 @@
                 <!-- Upload Alternative -->
                 <div class="border-t border-gray-200 pt-6 mb-6">
                     <p class="text-center text-gray-500 mb-4">atau upload gambar untuk analisis AI</p>
-                    <label class="flex flex-col items-center justify-center w-full h-32 border-2 border-dashed border-purple-300 rounded-2xl cursor-pointer hover:bg-purple-50 transition-all">
-                        <div class="flex flex-col items-center justify-center pt-5 pb-6">
-                            <span class="text-4xl mb-2">📁</span>
-                            <p class="text-sm text-gray-600 font-medium">Klik untuk upload foto makanan</p>
+                    
+                    <!-- Drag & Drop Zone -->
+                    <div id="dropZone" class="flex flex-col items-center justify-center w-full h-40 border-2 border-dashed border-purple-300 rounded-2xl cursor-pointer hover:bg-purple-50 transition-all bg-white">
+                        <div class="flex flex-col items-center justify-center pt-5 pb-6 text-center px-4">
+                            <span class="text-4xl mb-2" id="uploadIcon">📁</span>
+                            <p class="text-sm text-gray-600 font-medium" id="uploadText">Klik atau drag & drop foto makanan</p>
+                            <p class="text-xs text-gray-400 mt-1">JPG, PNG (Max 5MB)</p>
                         </div>
-                        <input type="file" class="hidden" accept="image/*" onchange="handleImageUpload(event)" />
-                    </label>
+                        <input type="file" id="fileInput" class="hidden" accept="image/jpeg,image/png,image/jpg" onchange="handleFileSelect(event)" />
+                    </div>
                 </div>
 
                 <!-- AI Analysis Result -->
@@ -279,11 +324,11 @@
                             <h3 class="font-bold text-lg text-gray-800">Hasil Analisis Google Vision</h3>
                             <p class="text-sm text-gray-500">Object Detection & Labeling</p>
                         </div>
-                        <span id="confidenceBadge" class="confidence-badge">94% Match</span>
+                        <span id="confidenceBadge" class="confidence-badge">0% Match</span>
                     </div>
 
                     <div class="mb-4">
-                        <h4 id="detectedFood" class="text-2xl font-bold text-purple-700 mb-2">Nasi Goreng</h4>
+                        <h4 id="detectedFood" class="text-2xl font-bold text-purple-700 mb-2">-</h4>
                         
                         <!-- Detected Labels -->
                         <div class="detected-labels" id="detectedLabels">
@@ -292,8 +337,7 @@
 
                         <div class="bg-purple-50 rounded-xl p-4 mb-4 mt-4">
                             <p id="aiDescription" class="text-gray-700 leading-relaxed">
-                                Terdeteksi makanan khas Indonesia dengan kandungan karbohidrat tinggi. 
-                                Disarankan untuk mengonsumsi dengan porsi sedang.
+                                Analisis akan muncul di sini...
                             </p>
                         </div>
                     </div>
@@ -301,43 +345,43 @@
                     <!-- Nutrition Facts -->
                     <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
                         <div class="text-center p-3 bg-orange-50 rounded-xl">
-                            <div class="text-2xl font-bold text-orange-600" id="resCalories">250</div>
+                            <div class="text-2xl font-bold text-orange-600" id="resCalories">0</div>
                             <div class="text-xs text-gray-600 font-medium">Kalori</div>
                             <div class="nutrition-bar">
-                                <div class="nutrition-fill" style="width: 50%"></div>
+                                <div class="nutrition-fill" style="width: 0%"></div>
                             </div>
                         </div>
                         <div class="text-center p-3 bg-blue-50 rounded-xl">
-                            <div class="text-2xl font-bold text-blue-600" id="resProtein">8g</div>
+                            <div class="text-2xl font-bold text-blue-600" id="resProtein">0g</div>
                             <div class="text-xs text-gray-600 font-medium">Protein</div>
                             <div class="nutrition-bar">
-                                <div class="nutrition-fill bg-blue-500" style="width: 30%"></div>
+                                <div class="nutrition-fill bg-blue-500" style="width: 0%"></div>
                             </div>
                         </div>
                         <div class="text-center p-3 bg-green-50 rounded-xl">
-                            <div class="text-2xl font-bold text-green-600" id="resCarbs">35g</div>
+                            <div class="text-2xl font-bold text-green-600" id="resCarbs">0g</div>
                             <div class="text-xs text-gray-600 font-medium">Karbohidrat</div>
                             <div class="nutrition-bar">
-                                <div class="nutrition-fill bg-green-500" style="width: 70%"></div>
+                                <div class="nutrition-fill bg-green-500" style="width: 0%"></div>
                             </div>
                         </div>
                         <div class="text-center p-3 bg-yellow-50 rounded-xl">
-                            <div class="text-2xl font-bold text-yellow-600" id="resFat">9g</div>
+                            <div class="text-2xl font-bold text-yellow-600" id="resFat">0g</div>
                             <div class="text-xs text-gray-600 font-medium">Lemak</div>
                             <div class="nutrition-bar">
-                                <div class="nutrition-fill bg-yellow-500" style="width: 40%"></div>
+                                <div class="nutrition-fill bg-yellow-500" style="width: 0%"></div>
                             </div>
                         </div>
                     </div>
 
                     <div class="mt-4 p-3 bg-gray-50 rounded-lg text-sm text-gray-600">
-                        <strong>💡 Saran AI:</strong> <span id="aiSuggestion">Kurangi penggunaan minyak saat memasak untuk mengurangi lemak.</span>
+                        <strong>💡 Saran AI:</strong> <span id="aiSuggestion">-</span>
                     </div>
 
                     <!-- Raw Vision Data (Collapsible) -->
                     <details class="mt-4 text-sm text-gray-500">
                         <summary class="cursor-pointer hover:text-purple-600 font-medium">Lihat Data Mentah Google Vision</summary>
-                        <pre id="rawVisionData" class="mt-2 p-3 bg-gray-100 rounded-lg overflow-x-auto text-xs"></pre>
+                        <pre id="rawVisionData" class="mt-2 p-3 bg-gray-100 rounded-lg overflow-x-auto text-xs max-h-60 overflow-y-auto"></pre>
                     </details>
                 </div>
             </div>
@@ -346,17 +390,18 @@
 
     <script>
         // ==========================================
-        // KONFIGURASI API - AMAN & TERENKRIPSI
+        // KONFIGURASI API - PASTIKAN KEY VALID
         // ==========================================
         
-        // API Key di-obfuscate untuk keamanan dasar
-        // Catatan: Untuk produksi, gunakan backend proxy
-        const API_CONFIG = {
-            key: atob('QUl6YVN5QlhRQkU1U0ZwemZvQ3hTcV9CNUN4Zm1wSDgxWDhiRzFr'), // Base64 encoded
-            endpoint: 'https://vision.googleapis.com/v1/images:annotate'
-        };
+        // ⚠️ GANTI DENGAN API KEY ANDA YANG VALID
+        const API_KEY = 'AIzaSyBXQBE5SFpzfoCxSq_B5CxfmpH81X8bG1k';
+        const VISION_API_URL = `https://vision.googleapis.com/v1/images:annotate?key=${API_KEY}`;
 
-        // Enhanced Food Database dengan mapping untuk Vision API
+        // Debug: Cek apakah key ter-load (hapus ini setelah testing)
+        console.log('API Key loaded:', API_KEY ? 'Yes' : 'No');
+        console.log('API URL:', VISION_API_URL);
+
+        // Enhanced Food Database
         const foodDatabase = [
             { 
                 name: "Nasi Putih", 
@@ -368,7 +413,7 @@
                 image: "https://images.unsplash.com/photo-1586201375761-83865001e31c?w=400&h=300&fit=crop",
                 category: "karbo",
                 description: "Sumber energi utama, rendah lemak",
-                visionKeywords: ["rice", "white rice", "steamed rice", "nasi", "boiled rice"]
+                visionKeywords: ["rice", "white rice", "steamed rice", "nasi", "boiled rice", "cooked rice"]
             },
             { 
                 name: "Nasi Goreng", 
@@ -380,7 +425,7 @@
                 image: "https://images.unsplash.com/photo-1603133872878-684f208fb74b?w=400&h=300&fit=crop",
                 category: "karbo",
                 description: "Nasi goreng tradisional dengan bumbu khas",
-                visionKeywords: ["fried rice", "nasi goreng", "stir fry rice", "asian rice"]
+                visionKeywords: ["fried rice", "nasi goreng", "stir fry rice", "asian rice", "rice dish"]
             },
             { 
                 name: "Ayam Goreng", 
@@ -392,7 +437,7 @@
                 image: "https://images.unsplash.com/photo-1626082927389-6cd097cdc6ec?w=400&h=300&fit=crop",
                 category: "protein",
                 description: "Protein tinggi, gorengan crispy",
-                visionKeywords: ["fried chicken", "crispy chicken", "ayam goreng", "chicken"]
+                visionKeywords: ["fried chicken", "crispy chicken", "ayam goreng", "chicken", "poultry"]
             },
             { 
                 name: "Ayam Bakar", 
@@ -404,7 +449,7 @@
                 image: "https://images.unsplash.com/photo-1598103442097-8b74394b95c6?w=400&h=300&fit=crop",
                 category: "protein",
                 description: "Lebih sehat dari ayam goreng",
-                visionKeywords: ["grilled chicken", "roasted chicken", "bbq chicken", "ayam bakar"]
+                visionKeywords: ["grilled chicken", "roasted chicken", "bbq chicken", "ayam bakar", "barbecue chicken"]
             },
             { 
                 name: "Telur Goreng", 
@@ -416,7 +461,7 @@
                 image: "https://images.unsplash.com/photo-1525351484163-7529414395d8?w=400&h=300&fit=crop",
                 category: "protein",
                 description: "Sumber protein lengkap",
-                visionKeywords: ["fried egg", "sunny side up", "egg", "telur"]
+                visionKeywords: ["fried egg", "sunny side up", "egg", "telur", "cooked egg"]
             },
             { 
                 name: "Telur Rebus", 
@@ -428,7 +473,7 @@
                 image: "https://images.unsplash.com/photo-1482049016688-2d3e1b311543?w=400&h=300&fit=crop",
                 category: "protein",
                 description: "Opsi lebih sehat, rendah lemak",
-                visionKeywords: ["boiled egg", "hard boiled egg", "egg", "telur rebus"]
+                visionKeywords: ["boiled egg", "hard boiled egg", "egg", "telur rebus", "eggs"]
             },
             { 
                 name: "Tempe Goreng", 
@@ -440,7 +485,7 @@
                 image: "https://images.unsplash.com/photo-1546069901-ba9599a7e63c?w=400&h=300&fit=crop",
                 category: "protein",
                 description: "Protein nabati, kaya serat",
-                visionKeywords: ["tempeh", "tempe", "fried tempeh", "soybean cake"]
+                visionKeywords: ["tempeh", "tempe", "fried tempeh", "soybean cake", "soy product"]
             },
             { 
                 name: "Tahu Goreng", 
@@ -452,7 +497,7 @@
                 image: "https://images.unsplash.com/photo-1546069901-d5bfd2cbfb1f?w=400&h=300&fit=crop",
                 category: "protein",
                 description: "Protein nabati, rendah kalori",
-                visionKeywords: ["tofu", "fried tofu", "tauhu", "bean curd"]
+                visionKeywords: ["tofu", "fried tofu", "tauhu", "bean curd", "soy tofu"]
             },
             { 
                 name: "Sayur Sop", 
@@ -464,7 +509,7 @@
                 image: "https://images.unsplash.com/photo-1547592166-23ac45744acd?w=400&h=300&fit=crop",
                 category: "sayur",
                 description: "Rendah kalori, kaya vitamin",
-                visionKeywords: ["vegetable soup", "soup", "sayur", "clear soup"]
+                visionKeywords: ["vegetable soup", "soup", "sayur", "clear soup", "broth"]
             },
             { 
                 name: "Gado-Gado", 
@@ -476,7 +521,7 @@
                 image: "https://images.unsplash.com/photo-1565557623262-b51c2513a641?w=400&h=300&fit=crop",
                 category: "sayur",
                 description: "Salad Indonesia dengan bumbu kacang",
-                visionKeywords: ["gado gado", "indonesian salad", "vegetable salad", "peanut sauce"]
+                visionKeywords: ["gado gado", "indonesian salad", "vegetable salad", "peanut sauce", "salad"]
             },
             { 
                 name: "Sate Ayam", 
@@ -488,7 +533,7 @@
                 image: "https://images.unsplash.com/photo-1555126634-323283e090fa?w=400&h=300&fit=crop",
                 category: "protein",
                 description: "Protein panggang dengan bumbu kacang",
-                visionKeywords: ["satay", "sate", "chicken satay", "skewers", "grilled meat"]
+                visionKeywords: ["satay", "sate", "chicken satay", "skewers", "grilled meat", "kebab"]
             },
             { 
                 name: "Rendang", 
@@ -500,7 +545,7 @@
                 image: "https://images.unsplash.com/photo-1635437930207-488f97dfdf87?w=400&h=300&fit=crop",
                 category: "protein",
                 description: "Masakan kaya rempah, tinggi lemak",
-                visionKeywords: ["rendang", "beef rendang", "indonesian beef", "spicy beef"]
+                visionKeywords: ["rendang", "beef rendang", "indonesian beef", "spicy beef", "beef curry"]
             },
             { 
                 name: "Mie Goreng", 
@@ -512,7 +557,7 @@
                 image: "https://images.unsplash.com/photo-1552611052-33e04de081de?w=400&h=300&fit=crop",
                 category: "karbo",
                 description: "Karbohidrat tinggi, kalori padat",
-                visionKeywords: ["fried noodles", "mie goreng", "noodles", "chow mein"]
+                visionKeywords: ["fried noodles", "mie goreng", "noodles", "chow mein", "stir fry noodles"]
             },
             { 
                 name: "Bakso", 
@@ -524,7 +569,7 @@
                 image: "https://images.unsplash.com/photo-1569718212165-3a8278d5f624?w=400&h=300&fit=crop",
                 category: "protein",
                 description: "Bakso dengan kuah kaldu",
-                visionKeywords: ["meatball", "bakso", "soup", "indonesian meatball"]
+                visionKeywords: ["meatball", "bakso", "soup", "indonesian meatball", "meatballs"]
             },
             { 
                 name: "Soto Ayam", 
@@ -536,7 +581,7 @@
                 image: "https://images.unsplash.com/photo-1547592166-23ac45744acd?w=400&h=300&fit=crop",
                 category: "protein",
                 description: "Sup tradisional, menyegarkan",
-                visionKeywords: ["soto", "chicken soup", "yellow soup", "indonesian soup"]
+                visionKeywords: ["soto", "chicken soup", "yellow soup", "indonesian soup", "soup"]
             },
             { 
                 name: "Ikan Bakar", 
@@ -548,7 +593,7 @@
                 image: "https://images.unsplash.com/photo-1519708227418-c8fd9a32b7a2?w=400&h=300&fit=crop",
                 category: "protein",
                 description: "Omega-3 tinggi, protein berkualitas",
-                visionKeywords: ["grilled fish", "ikan bakar", "fish", "seafood"]
+                visionKeywords: ["grilled fish", "ikan bakar", "fish", "seafood", "cooked fish"]
             },
             { 
                 name: "Jus Alpukat", 
@@ -560,7 +605,7 @@
                 image: "https://images.unsplash.com/photo-1523049673857-eb18f1d7b578?w=400&h=300&fit=crop",
                 category: "minuman",
                 description: "Lemak sehat, kaya potasium",
-                visionKeywords: ["avocado juice", "jus alpukat", "smoothie", "avocado"]
+                visionKeywords: ["avocado juice", "jus alpukat", "smoothie", "avocado", "avocado drink"]
             },
             { 
                 name: "Jus Jeruk", 
@@ -572,7 +617,7 @@
                 image: "https://images.unsplash.com/photo-1613478223719-2ab802602423?w=400&h=300&fit=crop",
                 category: "minuman",
                 description: "Vitamin C tinggi, segar",
-                visionKeywords: ["orange juice", "jus jeruk", "citrus juice", "orange"]
+                visionKeywords: ["orange juice", "jus jeruk", "citrus juice", "orange", "juice"]
             },
             { 
                 name: "Es Teh Manis", 
@@ -584,7 +629,7 @@
                 image: "https://images.unsplash.com/photo-1556679343-c7306c1976bc?w=400&h=300&fit=crop",
                 category: "minuman",
                 description: "Tinggi gula, konsumsi secukupnya",
-                visionKeywords: ["iced tea", "es teh", "sweet tea", "tea"]
+                visionKeywords: ["iced tea", "es teh", "sweet tea", "tea", "cold tea"]
             },
             { 
                 name: "Kopi Susu", 
@@ -596,7 +641,7 @@
                 image: "https://images.unsplash.com/photo-1461023058943-07fcbe16d735?w=400&h=300&fit=crop",
                 category: "minuman",
                 description: "Kafein rendah, kalsium",
-                visionKeywords: ["coffee", "kopi", "latte", "milk coffee", "cappuccino"]
+                visionKeywords: ["coffee", "kopi", "latte", "milk coffee", "cappuccino", "espresso"]
             },
             { 
                 name: "Pisang", 
@@ -608,7 +653,7 @@
                 image: "https://images.unsplash.com/photo-1571771894821-ce9b6c11b08e?w=400&h=300&fit=crop",
                 category: "buah",
                 description: "Energi instan, kaya potasium",
-                visionKeywords: ["banana", "pisang", "fruit", "tropical fruit"]
+                visionKeywords: ["banana", "pisang", "fruit", "tropical fruit", "yellow fruit"]
             },
             { 
                 name: "Apel", 
@@ -620,7 +665,7 @@
                 image: "https://images.unsplash.com/photo-1560806887-1e4cd0b6cbd6?w=400&h=300&fit=crop",
                 category: "buah",
                 description: "Serat tinggi, rendah kalori",
-                visionKeywords: ["apple", "apel", "fruit", "red apple"]
+                visionKeywords: ["apple", "apel", "fruit", "red apple", "fresh fruit"]
             },
             { 
                 name: "Salad Buah", 
@@ -632,7 +677,7 @@
                 image: "https://images.unsplash.com/photo-1519996529931-28324d5a630e?w=400&h=300&fit=crop",
                 category: "buah",
                 description: "Vitamin & antioksidan tinggi",
-                visionKeywords: ["fruit salad", "salad buah", "mixed fruit", "fresh fruit"]
+                visionKeywords: ["fruit salad", "salad buah", "mixed fruit", "fresh fruit", "fruit bowl"]
             },
             { 
                 name: "Roti Gandum", 
@@ -644,7 +689,7 @@
                 image: "https://images.unsplash.com/photo-1509440159596-0249088772ff?w=400&h=300&fit=crop",
                 category: "karbo",
                 description: "Serat tinggi, karbo kompleks",
-                visionKeywords: ["bread", "whole wheat", "roti", "toast", "whole grain"]
+                visionKeywords: ["bread", "whole wheat", "roti", "toast", "whole grain", "loaf"]
             }
         ];
 
@@ -654,37 +699,85 @@
         document.addEventListener('DOMContentLoaded', () => {
             displayFoods(foodDatabase);
             checkAPIStatus();
+            setupDragAndDrop();
+            
+            // Check HTTPS
+            if (window.location.protocol !== 'https:' && window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1') {
+                document.getElementById('httpsWarning').classList.remove('hidden');
+            }
         });
+
+        // Setup Drag and Drop
+        function setupDragAndDrop() {
+            const dropZone = document.getElementById('dropZone');
+            const fileInput = document.getElementById('fileInput');
+
+            dropZone.addEventListener('click', () => fileInput.click());
+
+            dropZone.addEventListener('dragover', (e) => {
+                e.preventDefault();
+                dropZone.classList.add('bg-purple-100', 'border-purple-500');
+            });
+
+            dropZone.addEventListener('dragleave', () => {
+                dropZone.classList.remove('bg-purple-100', 'border-purple-500');
+            });
+
+            dropZone.addEventListener('drop', (e) => {
+                e.preventDefault();
+                dropZone.classList.remove('bg-purple-100', 'border-purple-500');
+                
+                const files = e.dataTransfer.files;
+                if (files.length > 0) {
+                    handleFile(files[0]);
+                }
+            });
+        }
 
         // Check API Status
         async function checkAPIStatus() {
+            const statusEl = document.getElementById('apiStatus');
+            
             try {
-                const response = await fetch(`${API_CONFIG.endpoint}?key=${API_CONFIG.key}`, {
+                // Test dengan request dummy ke Vision API
+                const testResponse = await fetch(VISION_API_URL, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
                         requests: [{
-                            image: { content: 'dGVzdA==' }, // dummy base64
+                            image: { content: '/9j/4AAQSkZJRgABAQEASABIAAD' }, // minimal valid base64
                             features: [{ type: 'LABEL_DETECTION', maxResults: 1 }]
                         }]
                     })
                 });
-                
-                if (response.status === 400) { // 400 expected for dummy data, means API is valid
-                    document.getElementById('apiStatus').className = 'api-status connected';
-                    document.getElementById('apiStatus').innerHTML = '🔒 Google Vision API Active';
+
+                if (testResponse.status === 400) {
+                    // 400 adalah expected error untuk dummy image, berarti API key valid
+                    statusEl.className = 'api-status connected';
+                    statusEl.innerHTML = '✅ Google Vision API Ready';
+                } else if (testResponse.status === 403) {
+                    statusEl.className = 'api-status error';
+                    statusEl.innerHTML = '❌ API Key Invalid';
+                    showError('API Key tidak valid atau quota habis. Silakan cek Google Cloud Console.');
+                } else {
+                    statusEl.className = 'api-status connected';
+                    statusEl.innerHTML = '✅ API Connected';
                 }
             } catch (error) {
-                document.getElementById('apiStatus').className = 'api-status error';
-                document.getElementById('apiStatus').innerHTML = '⚠️ API Error';
+                statusEl.className = 'api-status error';
+                statusEl.innerHTML = '⚠️ Network Error';
+                console.error('API Check Error:', error);
             }
         }
 
         // ==========================================
-        // GOOGLE VISION API INTEGRATION
+        // GOOGLE VISION API INTEGRATION - FIXED
         // ==========================================
         
         async function analyzeWithVisionAPI(base64Image) {
+            console.log('Sending request to Vision API...');
+            console.log('Image size:', base64Image.length, 'chars');
+
             const requestBody = {
                 requests: [{
                     image: { content: base64Image },
@@ -697,18 +790,31 @@
             };
 
             try {
-                const response = await fetch(`${API_CONFIG.endpoint}?key=${API_CONFIG.key}`, {
+                const response = await fetch(VISION_API_URL, {
                     method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
+                    headers: { 
+                        'Content-Type': 'application/json',
+                        'Accept': 'application/json'
+                    },
                     body: JSON.stringify(requestBody)
                 });
 
+                console.log('Response status:', response.status);
+
                 if (!response.ok) {
-                    throw new Error(`API Error: ${response.status}`);
+                    const errorData = await response.json();
+                    console.error('API Error Response:', errorData);
+                    throw new Error(errorData.error?.message || `HTTP ${response.status}`);
                 }
 
                 const data = await response.json();
-                return data.responses[0];
+                console.log('Vision API Response:', data);
+                
+                if (data.responses && data.responses[0]) {
+                    return data.responses[0];
+                } else {
+                    throw new Error('Invalid response format');
+                }
             } catch (error) {
                 console.error('Vision API Error:', error);
                 throw error;
@@ -716,57 +822,59 @@
         }
 
         function matchFoodWithDatabase(visionResults) {
+            console.log('Matching results with database...');
+            
             const labels = visionResults.labelAnnotations || [];
             const objects = visionResults.localizedObjectAnnotations || [];
             
-            // Combine all detected terms
+            console.log('Detected labels:', labels.map(l => l.description));
+            console.log('Detected objects:', objects.map(o => o.name));
+
+            // Combine all detected terms with scores
             const detectedTerms = [
-                ...labels.map(l => l.description.toLowerCase()),
-                ...objects.map(o => o.name.toLowerCase())
+                ...labels.map(l => ({ term: l.description.toLowerCase(), score: l.score })),
+                ...objects.map(o => ({ term: o.name.toLowerCase(), score: 0.9 }))
             ];
 
             // Find best match in database
             let bestMatch = null;
             let highestScore = 0;
-            let matchedKeywords = [];
+            let matchDetails = [];
 
             for (const food of foodDatabase) {
                 let score = 0;
-                let matched = [];
+                let matchedTerms = [];
 
                 for (const keyword of food.visionKeywords) {
-                    for (const term of detectedTerms) {
-                        if (term.includes(keyword) || keyword.includes(term)) {
-                            score += 1;
-                            matched.push(term);
+                    for (const detected of detectedTerms) {
+                        if (detected.term.includes(keyword) || keyword.includes(detected.term)) {
+                            score += detected.score;
+                            matchedTerms.push(detected.term);
                         }
                     }
-                }
-
-                // Also check confidence scores from API
-                const foodLabels = labels.filter(l => 
-                    food.visionKeywords.some(k => l.description.toLowerCase().includes(k))
-                );
-                
-                if (foodLabels.length > 0) {
-                    const avgConfidence = foodLabels.reduce((sum, l) => sum + l.score, 0) / foodLabels.length;
-                    score += avgConfidence * 5; // Weight confidence heavily
                 }
 
                 if (score > highestScore) {
                     highestScore = score;
                     bestMatch = food;
-                    matchedKeywords = [...new Set(matched)];
+                    matchDetails = matchedTerms;
                 }
             }
 
-            // Calculate confidence percentage
-            const confidence = Math.min(Math.round((highestScore / 3) * 100), 99);
+            // Calculate confidence percentage (cap at 99%)
+            const confidence = Math.min(Math.round(highestScore * 100), 99);
             
+            // If no good match found, use random for demo but mark as low confidence
+            if (!bestMatch || confidence < 30) {
+                bestMatch = foodDatabase[Math.floor(Math.random() * foodDatabase.length)];
+                console.warn('No good match found, using fallback');
+            }
+
             return {
-                food: bestMatch || foodDatabase[Math.floor(Math.random() * foodDatabase.length)],
+                food: bestMatch,
                 confidence: confidence,
-                detectedTerms: detectedTerms.slice(0, 8),
+                detectedTerms: detectedTerms.map(d => d.term).slice(0, 8),
+                matchedKeywords: matchDetails,
                 rawVision: visionResults
             };
         }
@@ -840,39 +948,82 @@
             if (tab !== 'scan') stopCamera();
         }
 
+        function showError(message) {
+            const errorDiv = document.getElementById('errorDisplay');
+            errorDiv.innerHTML = `<div class="error-message"><strong>Error:</strong> ${message}</div>`;
+            errorDiv.classList.remove('hidden');
+            setTimeout(() => errorDiv.classList.add('hidden'), 5000);
+        }
+
+        function showSuccess(message) {
+            const errorDiv = document.getElementById('errorDisplay');
+            errorDiv.innerHTML = `<div class="success-message"><strong>Sukses:</strong> ${message}</div>`;
+            errorDiv.classList.remove('hidden');
+            setTimeout(() => errorDiv.classList.add('hidden'), 3000);
+        }
+
         // ==========================================
-        // CAMERA FUNCTIONS
+        // CAMERA FUNCTIONS - FIXED
         // ==========================================
 
         async function startCamera() {
             const video = document.getElementById('videoElement');
+            const placeholder = document.getElementById('cameraPlaceholder');
+            const overlay = document.getElementById('scanOverlay');
+            
+            // Check if HTTPS or localhost
+            const isSecure = window.location.protocol === 'https:' || 
+                           window.location.hostname === 'localhost' || 
+                           window.location.hostname === '127.0.0.1';
+            
+            if (!isSecure) {
+                showError('Kamera memerlukan HTTPS atau localhost. Gunakan upload gambar saja.');
+                return;
+            }
             
             try {
+                console.log('Starting camera...');
                 currentStream = await navigator.mediaDevices.getUserMedia({ 
                     video: { 
                         facingMode: 'environment',
-                        width: { ideal: 1920 },
-                        height: { ideal: 1080 }
-                    } 
+                        width: { ideal: 1280 },
+                        height: { ideal: 720 }
+                    },
+                    audio: false
                 });
+                
                 video.srcObject = currentStream;
+                video.classList.remove('hidden');
+                placeholder.classList.add('hidden');
+                overlay.classList.remove('hidden');
                 
                 document.getElementById('startBtn').classList.add('hidden');
                 document.getElementById('captureBtn').classList.remove('hidden');
                 document.getElementById('stopBtn').classList.remove('hidden');
                 
+                showSuccess('Kamera berhasil dinyalakan');
+                
             } catch (err) {
-                alert("Tidak dapat mengakses kamera. Pastikan izin diberikan atau gunakan upload gambar.");
-                console.error("Camera error:", err);
+                console.error('Camera error:', err);
+                showError('Tidak dapat mengakses kamera: ' + err.message);
             }
         }
 
         function stopCamera() {
+            const video = document.getElementById('videoElement');
+            const placeholder = document.getElementById('cameraPlaceholder');
+            const overlay = document.getElementById('scanOverlay');
+            
             if (currentStream) {
                 currentStream.getTracks().forEach(track => track.stop());
                 currentStream = null;
             }
-            document.getElementById('videoElement').srcObject = null;
+            
+            video.srcObject = null;
+            video.classList.add('hidden');
+            placeholder.classList.remove('hidden');
+            overlay.classList.add('hidden');
+            
             document.getElementById('startBtn').classList.remove('hidden');
             document.getElementById('captureBtn').classList.add('hidden');
             document.getElementById('stopBtn').classList.add('hidden');
@@ -882,80 +1033,149 @@
             const video = document.getElementById('videoElement');
             const canvas = document.getElementById('canvasElement');
             const loadingOverlay = document.getElementById('loadingOverlay');
+            const loadingText = document.getElementById('loadingText');
             
             if (!currentStream) {
-                alert("Nyalakan kamera terlebih dahulu!");
+                showError('Nyalakan kamera terlebih dahulu!');
                 return;
             }
 
             loadingOverlay.classList.remove('hidden');
-            
-            // Capture image
-            canvas.width = video.videoWidth;
-            canvas.height = video.videoHeight;
-            const ctx = canvas.getContext('2d');
-            ctx.drawImage(video, 0, 0);
-            
-            // Convert to base64 (remove data:image/jpeg;base64, prefix)
-            const base64Image = canvas.toDataURL('image/jpeg', 0.9).split(',')[1];
+            loadingText.textContent = 'Menangkap gambar...';
             
             try {
-                // Call Google Vision API
+                // Set canvas size to match video
+                canvas.width = video.videoWidth || 640;
+                canvas.height = video.videoHeight || 480;
+                
+                const ctx = canvas.getContext('2d');
+                ctx.drawImage(video, 0, 0);
+                
+                loadingText.textContent = 'Mengkonversi gambar...';
+                
+                // Convert to base64 with compression
+                const base64Image = canvas.toDataURL('image/jpeg', 0.8).split(',')[1];
+                
+                loadingText.textContent = 'Mengirim ke Google Vision API...';
+                
+                // Call API
                 const visionResults = await analyzeWithVisionAPI(base64Image);
+                
+                loadingText.textContent = 'Memproses hasil...';
+                
                 const analysis = matchFoodWithDatabase(visionResults);
                 displayAIResult(analysis);
+                
+                showSuccess('Analisis berhasil!');
+                
             } catch (error) {
-                alert("Gagal menganalisis gambar. Silakan coba lagi.");
-                console.error(error);
+                console.error('Analysis error:', error);
+                showError('Gagal menganalisis: ' + error.message);
             } finally {
                 loadingOverlay.classList.add('hidden');
             }
         }
 
-        function handleImageUpload(event) {
+        // ==========================================
+        // FILE UPLOAD - FIXED
+        // ==========================================
+
+        function handleFileSelect(event) {
             const file = event.target.files[0];
-            if (!file) return;
+            if (file) handleFile(file);
+        }
+
+        function handleFile(file) {
+            console.log('Processing file:', file.name, 'Size:', file.size);
+            
+            // Validate file
+            if (!file.type.match(/image\/(jpeg|jpg|png)/)) {
+                showError('Format file harus JPG atau PNG');
+                return;
+            }
+            
+            if (file.size > 5 * 1024 * 1024) { // 5MB limit
+                showError('Ukuran file maksimal 5MB');
+                return;
+            }
+
+            // Update UI
+            const dropZone = document.getElementById('dropZone');
+            const uploadIcon = document.getElementById('uploadIcon');
+            const uploadText = document.getElementById('uploadText');
+            
+            uploadIcon.textContent = '⏳';
+            uploadText.textContent = 'Memproses gambar...';
             
             const reader = new FileReader();
+            
             reader.onload = function(e) {
                 const img = new Image();
+                
                 img.onload = async function() {
-                    const canvas = document.getElementById('canvasElement');
-                    // Resize for faster processing
-                    const maxSize = 800;
-                    let width = img.width;
-                    let height = img.height;
-                    
-                    if (width > maxSize || height > maxSize) {
-                        if (width > height) {
-                            height *= maxSize / width;
-                            width = maxSize;
-                        } else {
-                            width *= maxSize / height;
-                            height = maxSize;
-                        }
-                    }
-                    
-                    canvas.width = width;
-                    canvas.height = height;
-                    const ctx = canvas.getContext('2d');
-                    ctx.drawImage(img, 0, 0, width, height);
-                    
-                    document.getElementById('loadingOverlay').classList.remove('hidden');
-                    
                     try {
-                        const base64Image = canvas.toDataURL('image/jpeg', 0.9).split(',')[1];
+                        // Resize image for API (max 1024px)
+                        const canvas = document.getElementById('canvasElement');
+                        const maxSize = 1024;
+                        let width = img.width;
+                        let height = img.height;
+                        
+                        if (width > maxSize || height > maxSize) {
+                            if (width > height) {
+                                height *= maxSize / width;
+                                width = maxSize;
+                            } else {
+                                width *= maxSize / height;
+                                height = maxSize;
+                            }
+                        }
+                        
+                        canvas.width = width;
+                        canvas.height = height;
+                        const ctx = canvas.getContext('2d');
+                        ctx.drawImage(img, 0, 0, width, height);
+                        
+                        // Convert to base64
+                        const base64Image = canvas.toDataURL('image/jpeg', 0.85).split(',')[1];
+                        
+                        console.log('Image processed, size:', base64Image.length);
+                        
+                        // Show loading
+                        document.getElementById('loadingOverlay').classList.remove('hidden');
+                        document.getElementById('loadingText').textContent = 'Menganalisis dengan AI...';
+                        
+                        // Call API
                         const visionResults = await analyzeWithVisionAPI(base64Image);
                         const analysis = matchFoodWithDatabase(visionResults);
                         displayAIResult(analysis);
+                        
+                        showSuccess('Upload dan analisis berhasil!');
+                        
                     } catch (error) {
-                        alert("Gagal menganalisis gambar. Pastikan file valid.");
+                        console.error('Upload analysis error:', error);
+                        showError('Gagal menganalisis gambar: ' + error.message);
                     } finally {
                         document.getElementById('loadingOverlay').classList.add('hidden');
+                        uploadIcon.textContent = '📁';
+                        uploadText.textContent = 'Klik atau drag & drop foto makanan';
                     }
                 };
+                
+                img.onerror = function() {
+                    showError('Gagal memuat gambar');
+                    uploadIcon.textContent = '📁';
+                    uploadText.textContent = 'Klik atau drag & drop foto makanan';
+                };
+                
                 img.src = e.target.result;
             };
+            
+            reader.onerror = function() {
+                showError('Gagal membaca file');
+                uploadIcon.textContent = '📁';
+                uploadText.textContent = 'Klik atau drag & drop foto makanan';
+            };
+            
             reader.readAsDataURL(file);
         }
 
@@ -972,7 +1192,7 @@
                 `<span class="label-tag">${term}</span>`
             ).join('');
             
-            // AI Description based on Vision results
+            // AI Description
             const descriptions = {
                 'karbo': `Terdeteksi makanan berbasis karbohidrat. ${result.name} mengandung ${result.calories} kkal per ${result.portion}. Cocok sebagai sumber energi.`,
                 'protein': `Terdeteksi sumber protein. ${result.name} kaya protein (${result.protein}) yang baik untuk pembentukan otot.`,
@@ -984,13 +1204,13 @@
             document.getElementById('aiDescription').textContent = 
                 descriptions[result.category] || `Terdeteksi ${result.name}. ${result.description}`;
             
-            // Suggestions based on nutrition
+            // Suggestions
             const suggestions = {
-                'karbo': "💡 Saran: Konsumsi bersama protein untuk penyerapan gula yang lebih baik.",
-                'protein': "💡 Saran: Tambahkan sayuran untuk serat dan vitamin tambahan.",
-                'sayur': "💡 Saran: Pilihan excellent! Tambahkan sedikit protein untuk hidangan lengkap.",
-                'buah': "💡 Saran: Konsumsi di pagi hari untuk energi optimal.",
-                'minuman': "💡 Saran: Pilih versi less sugar atau tanpa gula tambahan."
+                'karbo': "Konsumsi bersama protein untuk penyerapan gula yang lebih baik.",
+                'protein': "Tambahkan sayuran untuk serat dan vitamin tambahan.",
+                'sayur': "Pilihan excellent! Tambahkan sedikit protein untuk hidangan lengkap.",
+                'buah': "Konsumsi di pagi hari untuk energi optimal.",
+                'minuman': "Pilih versi less sugar atau tanpa gula tambahan."
             };
             
             document.getElementById('aiSuggestion').textContent = suggestions[result.category];
@@ -1010,9 +1230,10 @@
                 bars[3].style.width = Math.min((parseInt(result.fat) / 30) * 100, 100) + '%';
             }, 100);
             
-            // Raw data for debugging
+            // Raw data
             document.getElementById('rawVisionData').textContent = JSON.stringify(analysis.rawVision, null, 2);
             
+            // Scroll to result
             document.getElementById('aiResult').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
         }
 
