@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Scan Makanan AI</title>
+<script src="https://cdn.tailwindcss.com"></script>
+</head>
+
+<body class="bg-gradient-to-br from-purple-600 to-indigo-700 min-h-screen text-white flex flex-col items-center p-6">
+
+<h1 class="text-3xl font-bold mb-6">📷 Scan Makanan dengan AI</h1>
+
+<!-- CAMERA -->
+<div class="relative w-full max-w-xl bg-black rounded-2xl overflow-hidden">
+    <video id="video" autoplay playsinline class="w-full h-80 object-cover"></video>
+    <canvas id="canvas" class="hidden"></canvas>
+</div>
+
+<!-- BUTTON -->
+<div class="flex gap-4 mt-6">
+    <button onclick="startCamera()" class="bg-green-500 px-6 py-3 rounded-xl font-bold">Nyalakan Kamera</button>
+    <button onclick="capture()" class="bg-purple-500 px-6 py-3 rounded-xl font-bold">Scan AI</button>
+</div>
+
+<!-- LOADING -->
+<div id="loading" class="hidden mt-4">🔄 Menganalisis dengan AI...</div>
+
+<!-- RESULT -->
+<div id="result" class="hidden bg-white text-gray-800 mt-6 p-6 rounded-2xl w-full max-w-xl">
+    <h2 class="text-xl font-bold mb-2" id="foodName">-</h2>
+    <p id="confidence"></p>
+
+    <div class="mt-4 grid grid-cols-2 gap-4">
+        <div>Kalori: <span id="calories">-</span></div>
+        <div>Protein: <span id="protein">-</span></div>
+        <div>Karbo: <span id="carbs">-</span></div>
+        <div>Lemak: <span id="fat">-</span></div>
+    </div>
+</div>
+
+<script>
+// ================= CONFIG =================
+const API_KEY = "PASTE_API_KEY_KAMU";
+const VISION_URL = `https://vision.googleapis.com/v1/images:annotate?key=${API_KEY}`;
+
+let video = document.getElementById("video");
+let canvas = document.getElementById("canvas");
+let ctx = canvas.getContext("2d");
+
+// ================= DATABASE MAKANAN =================
+const foodDB = [
+  {name:"Nasi Goreng", keywords:["fried rice","nasi goreng"], calories:250, protein:"8g", carbs:"35g", fat:"9g"},
+  {name:"Nasi Putih", keywords:["rice","white rice","nasi"], calories:175, protein:"4g", carbs:"40g", fat:"0.5g"},
+  {name:"Ayam Goreng", keywords:["fried chicken","chicken"], calories:290, protein:"25g", carbs:"0g", fat:"20g"},
+  {name:"Telur", keywords:["egg","fried egg","boiled egg"], calories:90, protein:"6g", carbs:"1g", fat:"7g"},
+  {name:"Mie Goreng", keywords:["noodles","fried noodles","mie goreng"], calories:400, protein:"12g", carbs:"55g", fat:"15g"}
+];
+
+// ================= CAMERA =================
+async function startCamera(){
+    try{
+        const stream = await navigator.mediaDevices.getUserMedia({video:true});
+        video.srcObject = stream;
+    }catch(err){
+        alert("Kamera tidak bisa diakses");
+        console.error(err);
+    }
+}
+
+// ================= CAPTURE =================
+async function capture(){
+    document.getElementById("loading").classList.remove("hidden");
+
+    canvas.width = video.videoWidth;
+    canvas.height = video.videoHeight;
+    ctx.drawImage(video, 0, 0);
+
+    const base64 = canvas.toDataURL("image/jpeg").split(",")[1];
+
+    await analyzeImage(base64);
+}
+
+// ================= CALL GOOGLE VISION =================
+async function analyzeImage(base64Image){
+    try{
+        const response = await fetch(VISION_URL, {
+            method:"POST",
+            headers:{"Content-Type":"application/json"},
+            body:JSON.stringify({
+                requests:[
+                    {
+                        image:{content:base64Image},
+                        features:[{type:"LABEL_DETECTION", maxResults:5}]
+                    }
+                ]
+            })
+        });
+
+        const data = await response.json();
+
+        if(!data.responses || !data.responses[0].labelAnnotations){
+            throw new Error("AI tidak menemukan objek");
+        }
+
+        const labels = data.responses[0].labelAnnotations;
+        matchFood(labels);
+
+    }catch(err){
+        alert("Error AI: " + err.message);
+        console.error(err);
+    }
+
+    document.getElementById("loading").classList.add("hidden");
+}
+
+// ================= COCOKKAN KE DATABASE =================
+function matchFood(labels){
+    let detectedFood = null;
+    let confidence = 0;
+
+    labels.forEach(label=>{
+        const text = label.description.toLowerCase();
+
+        foodDB.forEach(food=>{
+            food.keywords.forEach(keyword=>{
+                if(text.includes(keyword)){
+                    detectedFood = food;
+                    confidence = Math.round(label.score * 100);
+                }
+            });
+        });
+    });
+
+    showResult(detectedFood, confidence);
+}
+
+// ================= TAMPILKAN HASIL =================
+function showResult(food, confidence){
+    const result = document.getElementById("result");
+    result.classList.remove("hidden");
+
+    if(food){
+        document.getElementById("foodName").innerText = food.name;
+        document.getElementById("confidence").innerText = `Akurasi AI: ${confidence}%`;
+
+        document.getElementById("calories").innerText = food.calories;
+        document.getElementById("protein").innerText = food.protein;
+        document.getElementById("carbs").innerText = food.carbs;
+        document.getElementById("fat").innerText = food.fat;
+    }else{
+        document.getElementById("foodName").innerText = "Makanan tidak dikenali";
+        document.getElementById("confidence").innerText = "";
+    }
+}
+</script>
+
+</body>
+</html>
