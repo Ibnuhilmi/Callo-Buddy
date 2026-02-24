@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <title>Scan AI - CalorieTrack</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+
+<body class="bg-gray-100 min-h-screen flex flex-col items-center justify-center p-6">
+
+  <h1 class="text-3xl font-bold mb-6 text-purple-700">📷 Scan Makanan dengan AI</h1>
+
+  <!-- Kamera -->
+  <video id="video" autoplay playsinline class="rounded-xl shadow-lg w-full max-w-md bg-black"></video>
+
+  <canvas id="canvas" class="hidden"></canvas>
+
+  <div class="flex gap-4 mt-6">
+    <button onclick="startCamera()"
+      class="bg-green-500 text-white px-6 py-3 rounded-xl font-bold">
+      Nyalakan Kamera
+    </button>
+
+    <button onclick="captureImage()"
+      class="bg-purple-600 text-white px-6 py-3 rounded-xl font-bold">
+      Scan AI
+    </button>
+  </div>
+
+  <!-- Hasil -->
+  <div id="result" class="mt-6 bg-white p-4 rounded-xl shadow max-w-md w-full hidden">
+    <h2 class="font-bold text-lg mb-2">Hasil Deteksi:</h2>
+    <p id="foodName">-</p>
+    <p id="calories">Kalori: -</p>
+  </div>
+
+<script>
+const API_KEY = "MASUKKAN_API_KEY_KAMU";
+const VISION_URL = `https://vision.googleapis.com/v1/images:annotate?key=${API_KEY}`;
+
+let video = document.getElementById("video");
+let canvas = document.getElementById("canvas");
+let ctx = canvas.getContext("2d");
+
+async function startCamera() {
+  const stream = await navigator.mediaDevices.getUserMedia({ video: true });
+  video.srcObject = stream;
+}
+
+async function captureImage() {
+  canvas.width = video.videoWidth;
+  canvas.height = video.videoHeight;
+
+  ctx.drawImage(video, 0, 0);
+
+  const base64Image = canvas.toDataURL("image/jpeg").split(",")[1];
+
+  analyzeWithVision(base64Image);
+}
+
+async function analyzeWithVision(imageBase64) {
+  document.getElementById("result").classList.remove("hidden");
+  document.getElementById("foodName").innerText = "Menganalisis...";
+
+  const requestBody = {
+    requests: [{
+      image: { content: imageBase64 },
+      features: [{ type: "LABEL_DETECTION", maxResults: 5 }]
+    }]
+  };
+
+  try {
+    const response = await fetch(VISION_URL, {
+      method: "POST",
+      body: JSON.stringify(requestBody)
+    });
+
+    const data = await response.json();
+
+    const labels = data.responses[0].labelAnnotations;
+    const food = labels[0].description;
+
+    document.getElementById("foodName").innerText = food;
+
+    // Mapping sederhana ke database kalori
+    const calories = getCalories(food);
+    document.getElementById("calories").innerText = "Kalori: " + calories;
+
+  } catch (err) {
+    document.getElementById("foodName").innerText = "Error AI";
+  }
+}
+
+// Database kalori sederhana
+function getCalories(food) {
+  food = food.toLowerCase();
+
+  if (food.includes("rice")) return "175 kcal";
+  if (food.includes("fried rice")) return "250 kcal";
+  if (food.includes("chicken")) return "290 kcal";
+  if (food.includes("egg")) return "90 kcal";
+  if (food.includes("noodle")) return "400 kcal";
+
+  return "Tidak diketahui";
+}
+</script>
+
+</body>
+</html>
