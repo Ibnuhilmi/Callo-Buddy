@@ -29,5 +29,10 @@ async function scanFood() {
 
     const data = await response.json();
 
+    if (!response.ok) {
+    resultDiv.innerHTML = `<div class="card"><p>❌ ${data.error}</p></div>`;
+    return;
+    }
+
     resultDiv.innerHTML = `<div class="card"><p>${data.result}</p></div>`;
 }
