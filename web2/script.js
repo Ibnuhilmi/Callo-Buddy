@@ -22,7 +22,7 @@ async function scanFood() {
 
     resultDiv.innerHTML = "⏳ Sedang memproses...";
 
-    const response = await fetch("https://b640094b-c02a-44f9-8364-09edeff6d2dd-00-mfzdfxtjgmt.janeway.replit.dev/scan", {
+    const response = await fetch("https://callo-buddy-backend--ibnuhilmi.replit.app", {
     method: "POST",
     body: formData
     });
