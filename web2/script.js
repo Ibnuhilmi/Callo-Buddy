@@ -22,9 +22,9 @@ async function scanFood() {
 
     resultDiv.innerHTML = "⏳ Sedang memproses...";
 
-    const response = await fetch("/scan", {
-        method: "POST",
-        body: formData
+    const response = await fetch("https://b640094b-c02a-44f9-8364-09edeff6d2dd-00-mfzdfxtjgmt.janeway.replit.dev/scan", {
+    method: "POST",
+    body: formData
     });
 
     const data = await response.json();
