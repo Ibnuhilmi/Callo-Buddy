@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<title>Calorie Tracker AI</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<header>
+<h1>🥗 Calorie Tracker AI</h1>
+</header>
+
+<nav>
+<button onclick="showMenu()">Daftar Makanan</button>
+<button onclick="showScan()">Scan Makanan</button>
+</nav>
+
+<section id="menuSection" class="active">
+<h2>Daftar Makanan</h2>
+
+<div class="card">
+<img src="https://source.unsplash.com/200x150/?nasi-goreng">
+<h3>Nasi Goreng</h3>
+<p>Kalori: 350 kcal</p>
+<p>Karbo: Tinggi | Protein: Sedang</p>
+</div>
+
+<div class="card">
+<img src="https://source.unsplash.com/200x150/?burger">
+<h3>Burger</h3>
+<p>Kalori: 450 kcal</p>
+<p>Lemak: Tinggi | Protein: Tinggi</p>
+</div>
+
+</section>
+
+<section id="scanSection">
+<h2>Scan Makanan</h2>
+<input type="file" id="imageInput" accept="image/*">
+<button onclick="scanFood()">Scan Sekarang</button>
+
+<div id="result"></div>
+</section>
+
+<script src="script.js"></script>
+</body>
+</html>
